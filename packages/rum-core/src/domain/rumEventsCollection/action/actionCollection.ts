@@ -1,5 +1,5 @@
 import type { Observable } from '@datadog/browser-core'
-import { assign, combine, toServerDuration, generateUUID } from '@datadog/browser-core'
+import { isExperimentalFeatureEnabled, assign, combine, toServerDuration, generateUUID } from '@datadog/browser-core'
 
 import type { CommonContext, RawRumActionEvent } from '../../../rawRumEvent.types'
 import { ActionType, RumEventType } from '../../../rawRumEvent.types'
@@ -9,6 +9,7 @@ import type { ForegroundContexts } from '../../foregroundContexts'
 import type { RumConfiguration } from '../../configuration'
 import type { AutoAction, CustomAction } from './trackActions'
 import { trackActions } from './trackActions'
+import { trackFrustrationSignals } from './trackFrustrationSignals'
 
 export function startActionCollection(
   lifeCycle: LifeCycle,
@@ -22,6 +23,27 @@ export function startActionCollection(
 
   if (configuration.trackInteractions) {
     trackActions(lifeCycle, domMutationObservable, configuration)
+
+    if (isExperimentalFeatureEnabled('frustration-signals')) {
+      trackFrustrationSignals(lifeCycle, domMutationObservable, configuration).subscribe((signal) => {
+        const rawRumEvent: RawRumActionEvent = {
+          date: signal.startClocks.timeStamp,
+          type: RumEventType.ACTION,
+          action: {
+            id: generateUUID(),
+            target: { name: signal.name },
+            type: signal.type as ActionType,
+            loading_time: toServerDuration(signal.duration),
+          },
+        }
+        lifeCycle.notify(LifeCycleEventType.RAW_RUM_EVENT_COLLECTED, {
+          rawRumEvent,
+          startTime: signal.startClocks.relative,
+          domainContext: { event: signal.event },
+          customerContext: signal.context,
+        })
+      })
+    }
   }
 
   return {
