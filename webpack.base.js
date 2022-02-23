@@ -1,4 +1,5 @@
 const path = require('path')
+const webpack = require('webpack')
 const TsconfigPathsPlugin = require('tsconfig-paths-webpack-plugin')
 const TerserPlugin = require('terser-webpack-plugin')
 const buildEnv = require('./scripts/build-env')
@@ -16,17 +17,6 @@ module.exports = ({ entry, mode, filename, types }) => ({
   devtool: mode === 'development' ? 'inline-source-map' : false,
   module: {
     rules: [
-      {
-        test: /\.ts$/,
-        loader: 'string-replace-loader',
-        options: {
-          multiple: [
-            { search: '<<< SDK_VERSION >>>', replace: buildEnv.SDK_VERSION },
-            { search: '<<< BUILD_MODE >>>', replace: buildEnv.BUILD_MODE },
-          ],
-        },
-      },
-
       {
         test: /\.(ts|js)$/,
         loader: 'ts-loader',
@@ -64,4 +54,15 @@ module.exports = ({ entry, mode, filename, types }) => ({
       }),
     ],
   },
+
+  plugins:
+    // do not replace in unit test in order to test behaviors related to build env variables
+    mode !== 'development'
+      ? [
+          new webpack.DefinePlugin({
+            __BUILD_ENV__BUILD_MODE__: JSON.stringify(buildEnv.BUILD_MODE),
+            __BUILD_ENV__SDK_VERSION__: JSON.stringify(buildEnv.SDK_VERSION),
+          }),
+        ]
+      : [],
 })
