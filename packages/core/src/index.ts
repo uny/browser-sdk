@@ -14,8 +14,10 @@ export { computeStackTrace, StackTrace } from './domain/tracekit'
 export { defineGlobal, makePublicApi } from './boot/init'
 export {
   startInternalMonitoring,
+  startMonitoringBatch,
   InternalMonitoring,
   MonitoringMessage,
+  TelemetryEvent,
   monitored,
   monitor,
   callMonitored,
