@@ -2,10 +2,9 @@ import type { Context } from '../../tools/context'
 import { display } from '../../tools/display'
 import { toStackTraceString } from '../../tools/error'
 import { assign, combine, jsonStringify } from '../../tools/utils'
-import { canUseEventBridge, getEventBridge } from '../../transport'
 import type { Configuration } from '../configuration'
 import { computeStackTrace } from '../tracekit'
-import { startMonitoringBatch } from './startMonitoringBatch'
+import { Observable } from '../../tools/observable'
 
 enum StatusType {
   info = 'info',
@@ -14,6 +13,7 @@ enum StatusType {
 
 export interface InternalMonitoring {
   setExternalContextProvider: (provider: () => Context) => void
+  monitoringMessageObservable: Observable<MonitoringMessage>
 }
 
 export interface MonitoringMessage extends Context {
@@ -36,14 +36,9 @@ let onInternalMonitoringMessageCollected: ((message: MonitoringMessage) => void)
 export function startInternalMonitoring(configuration: Configuration): InternalMonitoring {
   let externalContextProvider: () => Context
 
-  if (canUseEventBridge()) {
-    const bridge = getEventBridge<'internal_log', MonitoringMessage>()!
-    onInternalMonitoringMessageCollected = (message: MonitoringMessage) =>
-      bridge.send('internal_log', withContext(message))
-  } else if (configuration.internalMonitoringEndpointBuilder) {
-    const batch = startMonitoringBatch(configuration)
-    onInternalMonitoringMessageCollected = (message: MonitoringMessage) => batch.add(withContext(message))
-  }
+  const monitoringMessageObservable = new Observable<MonitoringMessage>()
+  onInternalMonitoringMessageCollected = (message: MonitoringMessage) =>
+    monitoringMessageObservable.notify(withContext(message))
 
   assign(monitoringConfiguration, {
     maxMessagesPerPage: configuration.maxInternalMonitoringMessagesPerPage,
@@ -62,6 +57,7 @@ export function startInternalMonitoring(configuration: Configuration): InternalM
     setExternalContextProvider: (provider: () => Context) => {
       externalContextProvider = provider
     },
+    monitoringMessageObservable,
   }
 }
 
