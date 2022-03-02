@@ -39,7 +39,7 @@ export const enum DOM_EVENT {
   SELECTION_CHANGE = 'selectionchange',
 }
 
-export enum ResourceType {
+export const enum ResourceType {
   DOCUMENT = 'document',
   XHR = 'xhr',
   BEACON = 'beacon',
@@ -52,7 +52,7 @@ export enum ResourceType {
   OTHER = 'other',
 }
 
-export enum RequestType {
+export const enum RequestType {
   FETCH = ResourceType.FETCH,
   XHR = ResourceType.XHR,
 }
