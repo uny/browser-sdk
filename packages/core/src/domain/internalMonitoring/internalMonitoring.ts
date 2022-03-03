@@ -7,6 +7,7 @@ import { computeStackTrace } from '../tracekit'
 import { Observable } from '../../tools/observable'
 import { timeStampNow } from '../../tools/timeUtils'
 import { isExperimentalFeatureEnabled } from '../configuration'
+import { canUseEventBridge, getEventBridge, startBatchWithReplica } from '../../transport'
 import type { TelemetryEvent } from './telemetryEvent.types'
 
 // replaced at build time
@@ -42,7 +43,10 @@ const monitoringConfiguration: {
 
 let onInternalMonitoringMessageCollected: ((message: MonitoringMessage) => void) | undefined
 
-export function startInternalMonitoring(configuration: Configuration): InternalMonitoring {
+export function startInternalMonitoring(
+  configuration: Configuration,
+  telemetryBatch?: { add: (event: Context) => void }
+): InternalMonitoring {
   let externalContextProvider: () => Context
   let telemetryContextProvider: () => Context
   const monitoringMessageObservable = new Observable<MonitoringMessage>()
@@ -81,6 +85,29 @@ export function startInternalMonitoring(configuration: Configuration): InternalM
       telemetryContextProvider !== undefined ? telemetryContextProvider() : {},
       message
     )
+  }
+
+  if (canUseEventBridge()) {
+    const bridge = getEventBridge<'internal_log' | 'internal_telemetry', MonitoringMessage | TelemetryEvent>()!
+    monitoringMessageObservable.subscribe((message) => bridge.send('internal_log', message))
+    telemetryEventObservable.subscribe((message) => bridge.send('internal_telemetry', message))
+  } else {
+    if (configuration.internalMonitoringEndpointBuilder) {
+      const batch = startBatchWithReplica(
+        configuration,
+        configuration.internalMonitoringEndpointBuilder,
+        configuration.replica?.internalMonitoringEndpointBuilder
+      )
+      monitoringMessageObservable.subscribe((message) => batch.add(message))
+    }
+    if (!telemetryBatch) {
+      telemetryBatch = startBatchWithReplica(
+        configuration,
+        configuration.rumEndpointBuilder,
+        configuration.replica?.rumEndpointBuilder
+      )
+    }
+    telemetryEventObservable.subscribe((event) => telemetryBatch!.add(event))
   }
 
   return {

@@ -1,11 +1,4 @@
-import type {
-  ConsoleLog,
-  Context,
-  RawError,
-  RelativeTime,
-  MonitoringMessage,
-  TelemetryEvent,
-} from '@datadog/browser-core'
+import type { ConsoleLog, Context, RawError, RelativeTime } from '@datadog/browser-core'
 import {
   areCookiesAuthorized,
   combine,
@@ -38,7 +31,7 @@ const LogStatusForApi = {
 }
 
 export function startLogs(configuration: LogsConfiguration, logger: Logger) {
-  const internalMonitoring = startLogsInternalMonitoring(configuration)
+  const internalMonitoring = startInternalMonitoring(configuration)
   internalMonitoring.setExternalContextProvider(() =>
     combine({ session_id: session.findTrackedSession()?.id }, getRUMInternalContext(), {
       view: { name: null, url: null, referrer: null },
@@ -73,31 +66,6 @@ export function startLogs(configuration: LogsConfiguration, logger: Logger) {
       : startLogsSessionManagerStub(configuration)
 
   return doStartLogs(configuration, rawErrorObservable, consoleObservable, session, logger)
-}
-
-function startLogsInternalMonitoring(configuration: LogsConfiguration) {
-  const internalMonitoring = startInternalMonitoring(configuration)
-  if (canUseEventBridge()) {
-    const bridge = getEventBridge<'internal_log' | 'internal_telemetry', MonitoringMessage | TelemetryEvent>()!
-    internalMonitoring.monitoringMessageObservable.subscribe((message) => bridge.send('internal_log', message))
-    internalMonitoring.telemetryEventObservable.subscribe((message) => bridge.send('internal_telemetry', message))
-  } else {
-    if (configuration.internalMonitoringEndpointBuilder) {
-      const batch = startBatchWithReplica(
-        configuration,
-        configuration.internalMonitoringEndpointBuilder,
-        configuration.replica?.internalMonitoringEndpointBuilder
-      )
-      internalMonitoring.monitoringMessageObservable.subscribe((message) => batch.add(message))
-    }
-    const monitoringBatch = startBatchWithReplica(
-      configuration,
-      configuration.rumEndpointBuilder,
-      configuration.replica?.rumEndpointBuilder
-    )
-    internalMonitoring.telemetryEventObservable.subscribe((event) => monitoringBatch.add(event))
-  }
-  return internalMonitoring
 }
 
 export function doStartLogs(

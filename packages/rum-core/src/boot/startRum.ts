@@ -1,11 +1,5 @@
-import type { Observable, MonitoringMessage, TelemetryEvent } from '@datadog/browser-core'
-import {
-  startInternalMonitoring,
-  combine,
-  canUseEventBridge,
-  startBatchWithReplica,
-  getEventBridge,
-} from '@datadog/browser-core'
+import type { Observable } from '@datadog/browser-core'
+import { startInternalMonitoring, combine, canUseEventBridge } from '@datadog/browser-core'
 import { createDOMMutationObservable } from '../browser/domMutationObservable'
 import { startPerformanceCollection } from '../browser/performanceCollection'
 import { startRumAssembly } from '../domain/assembly'
@@ -38,7 +32,14 @@ export function startRum(
 ) {
   const lifeCycle = new LifeCycle()
 
-  const internalMonitoring = startRumInternalMonitoring(configuration)
+  let batch
+  if (!canUseEventBridge()) {
+    batch = startRumBatch(configuration, lifeCycle)
+  } else {
+    startRumEventBridge(lifeCycle)
+  }
+
+  const internalMonitoring = startInternalMonitoring(configuration, batch)
   internalMonitoring.setExternalContextProvider(() =>
     combine(
       {
@@ -65,12 +66,6 @@ export function startRum(
       id: parentContexts.findAction()?.action.id,
     },
   }))
-
-  if (!canUseEventBridge()) {
-    startRumBatch(configuration, lifeCycle, internalMonitoring.telemetryEventObservable)
-  } else {
-    startRumEventBridge(lifeCycle)
-  }
 
   const session = !canUseEventBridge() ? startRumSessionManager(configuration, lifeCycle) : startRumSessionManagerStub()
   const domMutationObservable = createDOMMutationObservable()
@@ -115,23 +110,6 @@ export function startRum(
     session,
     getInternalContext: internalContext.get,
   }
-}
-
-function startRumInternalMonitoring(configuration: RumConfiguration) {
-  const internalMonitoring = startInternalMonitoring(configuration)
-  if (canUseEventBridge()) {
-    const bridge = getEventBridge<'internal_log' | 'internal_telemetry', MonitoringMessage | TelemetryEvent>()!
-    internalMonitoring.monitoringMessageObservable.subscribe((message) => bridge.send('internal_log', message))
-    internalMonitoring.telemetryEventObservable.subscribe((message) => bridge.send('internal_telemetry', message))
-  } else if (configuration.internalMonitoringEndpointBuilder) {
-    const batch = startBatchWithReplica(
-      configuration,
-      configuration.internalMonitoringEndpointBuilder,
-      configuration.replica?.internalMonitoringEndpointBuilder
-    )
-    internalMonitoring.monitoringMessageObservable.subscribe((message) => batch.add(message))
-  }
-  return internalMonitoring
 }
 
 export function startRumEventCollection(
