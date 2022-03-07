@@ -17,7 +17,6 @@ export {
   startInternalMonitoring,
   InternalMonitoring,
   MonitoringMessage,
-  monitored,
   monitor,
   callMonitored,
   addMonitoringMessage,

@@ -1,5 +1,5 @@
 import type { Context, ContextValue, TimeStamp } from '@datadog/browser-core'
-import { combine, createContextManager, ErrorSource, includes, monitored, display } from '@datadog/browser-core'
+import { combine, createContextManager, ErrorSource, includes, display, callMonitored } from '@datadog/browser-core'
 
 export const StatusType = {
   debug: 'debug',
@@ -46,19 +46,20 @@ export class Logger {
     this.contextManager.set(loggerContext)
   }
 
-  @monitored
   log(message: string, messageContext?: object, status: StatusType = StatusType.info) {
-    if (STATUS_PRIORITIES[status] >= STATUS_PRIORITIES[this.level]) {
-      const handlers = Array.isArray(this.handlerType) ? this.handlerType : [this.handlerType]
+    callMonitored(() => {
+      if (STATUS_PRIORITIES[status] >= STATUS_PRIORITIES[this.level]) {
+        const handlers = Array.isArray(this.handlerType) ? this.handlerType : [this.handlerType]
 
-      if (includes(handlers, HandlerType.http)) {
-        this.sendLog(combine({ message, status }, this.contextManager.get(), messageContext))
-      }
+        if (includes(handlers, HandlerType.http)) {
+          this.sendLog(combine({ message, status }, this.contextManager.get(), messageContext))
+        }
 
-      if (includes(handlers, HandlerType.console)) {
-        display.log(`${status}: ${message}`, combine(this.contextManager.get(), messageContext))
+        if (includes(handlers, HandlerType.console)) {
+          display.log(`${status}: ${message}`, combine(this.contextManager.get(), messageContext))
+        }
       }
-    }
+    })
   }
 
   debug(message: string, messageContext?: object) {
