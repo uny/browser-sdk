@@ -3,17 +3,16 @@
   "version": "4.6.1",
   "private": true,
   "scripts": {
-    "build": "rm -rf dist && webpack --mode production",
-    "dev": "webpack --mode development --watch"
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit true"
   },
   "devDependencies": {
+    "@craftamap/esbuild-plugin-html": "0.3.1",
     "@types/chrome": "0.0.179",
     "@types/react": "17.0.39",
     "@types/react-dom": "17.0.13",
-    "copy-webpack-plugin": "8.1.0",
-    "html-webpack-plugin": "5.3.1",
-    "webpack": "5.28.0",
-    "webpack-webextension-plugin": "0.4.1"
+    "esbuild-reloader": "0.4.1"
   },
   "dependencies": {
     "@mantine/core": "4.0.0",
