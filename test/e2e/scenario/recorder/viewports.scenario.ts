@@ -5,7 +5,7 @@ import type { RumInitConfiguration } from '@datadog/browser-rum-core'
 import { findAllIncrementalSnapshots, findAllVisualViewports } from '@datadog/browser-rum/test/utils'
 import type { EventRegistry } from '../../lib/framework'
 import { createTest, bundleSetup, html } from '../../lib/framework'
-import { browserExecute } from '../../lib/helpers/browser'
+import { browserExecute, getBrowserCapabilities } from '../../lib/helpers/browser'
 import { flushEvents } from '../../lib/helpers/flushEvents'
 
 const NAVBAR_HEIGHT_CHANGE_UPPER_BOUND = 30
@@ -137,8 +137,8 @@ function initRumAndStartRecording(initConfiguration: RumInitConfiguration) {
 }
 
 const isGestureUnsupported = () => {
-  const { browserName, platformName } = browser.capabilities
-  return /firefox|safari|msedge/i.test(browserName ?? '') || /windows|linux/i.test(platformName ?? '')
+  const { browserName, platformName } = getBrowserCapabilities()
+  return /firefox|safari|msedge/i.test(browserName) || /windows|linux/i.test(platformName || '')
 }
 
 // Flakiness: Working with viewport sizes has variations per device of a few pixels
@@ -294,7 +294,8 @@ function getScrollbarThickness(): Promise<number> {
 // Scrollbar edge-case handling not considered right now, further investigation needed
 async function getScrollbarThicknessCorrection(): Promise<number> {
   let scrollbarThickness = 0
-  if (browser.capabilities.browserName === 'chrome' && browser.capabilities.platformName === 'mac os x') {
+  const capabilities = getBrowserCapabilities()
+  if (capabilities.browserName === 'chrome' && capabilities.platformName === 'mac os x') {
     scrollbarThickness = await getScrollbarThickness()
   }
   return scrollbarThickness

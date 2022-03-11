@@ -15,6 +15,27 @@ export async function browserExecuteAsync<A extends any[]>(fn: (...params: A) =>
   return browser.executeAsync(fn as any, ...args)
 }
 
+export function getBrowserCapabilities(): { platformName?: string; browserName: string } {
+  const capabilities = browser.capabilities
+
+  let browserName
+  if ('browserName' in capabilities && typeof capabilities.browserName == 'string') {
+    browserName = capabilities.browserName
+  } else {
+    throw new Error('Cannot find browser name')
+  }
+
+  let platformName
+  if ('platformName' in capabilities && typeof capabilities.platformName == 'string') {
+    platformName = capabilities.platformName
+  }
+
+  return {
+    platformName,
+    browserName,
+  }
+}
+
 interface BrowserLog {
   level: string
   message: string
